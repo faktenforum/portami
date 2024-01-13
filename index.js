@@ -1,104 +1,117 @@
-import * as core from '@actions/core';
-import * as github from '@actions/github';
-import * as fs from 'fs';
-import fetch from 'node-fetch';
+import * as core from "@actions/core";
+import * as fs from "fs";
+import { ofetch } from "ofetch";
 
-const endpoint = core.getInput('endpoint')+"/api";
-const stack_name = core.getInput('stack_name');
-const file_path = core.getInput('file_path');
-const prune = core.getBooleanInput('prune');
-const pullImage = core.getBooleanInput('pull');
+const endpoint = "https://port.hive.beabee.io/api"; // core.getInput('endpoint')+"/api";
+const stack_name = "faktenforum-dev"; // core.getInput('stack_name');
+const file_path = undefined; //core.getInput('file_path');
+const prune = true; //core.getBooleanInput('prune');
+const pullImage = true; //core.getBooleanInput('pull');
 const headers = {
-    "x-api-key":  core.getInput('access_token'),
-    "Content-Type": "application/json"
+  "x-api-key": "ptr_QZ6PnxFfnR0QaUqoWur3VtxcjASNOfPT2gdlMeJbND8=", //core.getInput('access_token'),
+  "Content-Type": "application/json",
 };
 
-function withQuery(url, query) {
-    var exurl = new URL(url);
-    if (query) {
-        Object.keys(query).forEach(key => exurl.searchParams.append(key, query[key]));
+function upsertVariables(list, variables) {
+  variables.forEach((variable) => {
+    const index = list.findIndex((v) => v.name === variable.name);
+    if (index !== -1) {
+      list[index].value = variable.value;
+    } else {
+      list.push(variable);
     }
-    return exurl;
+  });
 }
 
-async function fetchStack() {
-    await fetch(withQuery(endpoint + '/stacks'),
-        {
-            headers: headers,
-        })
-        .then(response => response.json())
-        .then(async (data) => {
-            for (let i = 0; i < data.length; i++) {
-                if (data[i].Name == stack_name) {
-                    await fetchStackID(data[i].Id);
-                    break;
-                }
-            }
-        });
+async function fetchStacks() {
+  core.debug(`Fetching stacks from ${endpoint}/stacks`);
+  const response = await ofetch(`${endpoint}/stacks`, {
+    headers: headers,
+  });
+  core.debug(`Response: ${JSON.stringify(response, null, 3)}`);
+  return response;
 }
 
-async function fetchStackID(id) {
-    await fetch(withQuery(endpoint + '/stacks/' + id),
-        {
-            headers: headers,
-        })
-        .then(response => response.json())
-        .then(async (data) => {
-            await redoploy(data.Id, data.EndpointId, data.Env);
-        });
+async function fetchStackFile(id) {
+  core.debug(`Fetching stack file from ${endpoint}/stacks/${id}/file`);
+  const response = await ofetch(`${endpoint}/stacks/${id}/file`, {
+    headers: headers,
+  });
+  core.debug(`Response: ${JSON.stringify(response, null, 3)}`);
+  return response;
 }
 
-async function redoploy(id, endpointId, basicVars) {
-    let basicContent = "";
+async function redeployStack(id, endpointId, basicVars) {
+  let basicContent = "";
+  core.debug("Reading stack file content");
+  if (file_path) {
     try {
-        try {
-            let res = (await fetch(endpoint + '/stacks/' + id + '/file', {
-                method: 'GET',
-                headers: headers,
-            }).then(response => response.json()));
-            if (file_path) {
-                basicContent = fs.readFileSync(file_path,'utf8');
-            } else {
-                basicContent = res.StackFileContent;
-            }
-        } catch (error) {
-            core.setFailed("This stack is not a file stack");
-        }
-    } catch (_) {
-    }
-    basicVars.push({
-        "name": "PORTAMI_ACTIVE",
-        "value": "true"
-    }, {
-        "name": "PORTAMI_VERSION",
-        "value": "v1.2"
-    }, {
-        "name": "PORTAMI_UPDATED_AT",
-        "value": new Date().toISOString()
-    });
-
-    await fetch(withQuery(endpoint + '/stacks/' + id, {
-        "endpointId": endpointId,
-    }),
-        {
-            method: 'PUT',
-            headers: headers,
-            body: JSON.stringify({
-                "prune": prune,
-                "pullImage": pullImage,
-                "stackFileContent": basicContent,
-                "env": basicVars
-            })
-        }).then(response => response.json());
-}
-
-
-async function run() {
-    try {
-        await fetchStack();
+      basicContent = fs.readFileSync(file_path, "utf8");
     } catch (error) {
-        core.setFailed(error.message);
+      throw Error("This stack is not a file stack");
     }
+  } else {
+    const stackFileResponse = await fetchStackFile(id);
+    basicContent = stackFileResponse.StackFileContent;
+  }
+  core.debug("Stack file content: " + basicContent);
+
+  upsertVariables(basicVars, [
+    {
+      name: "PORTAMI_ACTIVE",
+      value: "true",
+    },
+    {
+      name: "PORTAMI_VERSION",
+      value: "v1.3",
+    },
+    {
+      name: "PORTAMI_UPDATED_AT",
+      value: new Date().toISOString(),
+    },
+  ]);
+
+  const url = new URL(`${endpoint}/stacks/${id}`);
+  url.search = new URLSearchParams({ endpointId }).toString();
+  const redeployData = {
+    prune: prune,
+    pullImage: pullImage,
+    stackFileContent: basicContent,
+    env: basicVars,
+  };
+
+  core.debug(
+    `Updating stack ${id} from ${endpoint}/stacks/${id}, body: ${JSON.stringify(
+      redeployData,
+      null,
+      3
+    )}`
+  );
+
+  const response = await ofetch(url, {
+    method: "PUT",
+    headers: headers,
+    body: redeployData,
+  });
+  return response;
 }
 
-run();
+async function main() {
+  try {
+    const stacks = await fetchStacks();
+    const stack = stacks.find((item) => item.Name === stack_name);
+    if (!stack) {
+      throw Error(`Error: Stack name '${stack_name}' not found.`);
+    }
+    const deployResponse = await redeployStack(
+      stack.Id,
+      stack.EndpointId,
+      stack.Env
+    );
+    core.debug(`Response: ${JSON.stringify(deployResponse, null, 3)}`);
+  } catch (error) {
+    core.error(error);
+  }
+}
+
+main();

@@ -1,6 +1,6 @@
 {
   "name": "portami",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "A portainer github action to let you update your stacks",
   "main": "index.js",
   "type": "module",
