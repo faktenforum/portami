@@ -80,13 +80,7 @@ async function redeployStack(id, endpointId, basicVars) {
     env: basicVars,
   };
 
-  core.debug(
-    `Updating stack ${id} from ${endpoint}/stacks/${id}, body: ${JSON.stringify(
-      redeployData,
-      null,
-      3
-    )}`
-  );
+  core.debug(`Updating stack ${id} from ${endpoint}/stacks/${id}`);
 
   const response = await ofetch(url, {
     method: "PUT",
