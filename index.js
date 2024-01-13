@@ -28,7 +28,7 @@ async function fetchStacks() {
   const response = await ofetch(`${endpoint}/stacks`, {
     headers: headers,
   });
-  core.debug(`Response: ${JSON.stringify(response, null, 3)}`);
+
   return response;
 }
 
@@ -37,7 +37,7 @@ async function fetchStackFile(id) {
   const response = await ofetch(`${endpoint}/stacks/${id}/file`, {
     headers: headers,
   });
-  core.debug(`Response: ${JSON.stringify(response, null, 3)}`);
+
   return response;
 }
 
@@ -54,7 +54,7 @@ async function redeployStack(id, endpointId, basicVars) {
     const stackFileResponse = await fetchStackFile(id);
     basicContent = stackFileResponse.StackFileContent;
   }
-  core.debug("Stack file content: " + basicContent);
+  core.debug("Stack file content length: " + basicContent.length);
 
   upsertVariables(basicVars, [
     {
@@ -108,7 +108,6 @@ async function main() {
       stack.EndpointId,
       stack.Env
     );
-    core.debug(`Response: ${JSON.stringify(deployResponse, null, 3)}`);
   } catch (error) {
     core.error(error);
   }
