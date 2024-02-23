@@ -1,27 +1,27 @@
-name: 'Portami'
-description: 'You have ever wondered if it was possible to update your Portainer stack withotu leaving gihtub, well now it is possible'
+name: "Portami"
+description: "You have ever wondered if it was possible to update your Portainer stack without leaving github, well now it is possible"
 branding:
-  icon: 'upload-cloud'
-  color: 'white'
+  icon: "upload-cloud"
+  color: "white"
 inputs:
-  endpoint: 
-    description: 'Portainer endpoint'
+  endpoint:
+    description: "Portainer endpoint"
     required: true
-  access_token: 
-    description: 'User access token with the right privilegis'
+  access_token:
+    description: "User access token with the right privileges"
     required: true
-  stack_name: 
-    description: 'Stack name'
-    required: true  
-  file_path: 
-    description: 'Path to the file to be updated'
+  stack_name:
+    description: "Stack name"
+    required: true
+  file_path:
+    description: "Path to the file to be updated"
     required: false
-  prune: 
-    description: 'Prune the stack'
+  prune:
+    description: "Prune the stack"
     required: false
-  pull: 
-    description: 'Pull the stack'
+  pull:
+    description: "Pull the stack"
     required: false
 runs:
-  using: 'node16'
-  main: 'index.js'
+  using: "node20"
+  main: "index.js"

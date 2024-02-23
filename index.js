@@ -2,13 +2,13 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import { ofetch } from "ofetch";
 
-const endpoint = "https://port.hive.beabee.io/api"; // core.getInput('endpoint')+"/api";
-const stack_name = "faktenforum-dev"; // core.getInput('stack_name');
-const file_path = undefined; //core.getInput('file_path');
-const prune = true; //core.getBooleanInput('prune');
-const pullImage = true; //core.getBooleanInput('pull');
+const endpoint = core.getInput("endpoint") + "/api";
+const stack_name = core.getInput("stack_name");
+const file_path = core.getInput("file_path");
+const prune = core.getBooleanInput("prune");
+const pullImage = core.getBooleanInput("pull");
 const headers = {
-  "x-api-key": "ptr_QZ6PnxFfnR0QaUqoWur3VtxcjASNOfPT2gdlMeJbND8=", //core.getInput('access_token'),
+  "x-api-key": core.getInput("access_token"),
   "Content-Type": "application/json",
 };
 
@@ -63,7 +63,7 @@ async function redeployStack(id, endpointId, basicVars) {
     },
     {
       name: "PORTAMI_VERSION",
-      value: "v1.3",
+      value: "v1.4",
     },
     {
       name: "PORTAMI_UPDATED_AT",
@@ -104,6 +104,7 @@ async function main() {
     );
   } catch (error) {
     core.error(error);
+    core.setFailed(error.message);
   }
 }
 
